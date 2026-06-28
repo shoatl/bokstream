@@ -64,6 +64,8 @@ const API_KEY = '9871bc59ef6f90d08eec9c49639c6151';
         embedURL = `https://vidsrc.net/embed/${type}/?tmdb=${currentItem.id}`;
       } else if (server === "player.videasy.net") {
         embedURL = `https://player.videasy.net/${type}/${currentItem.id}`;
+        else if (server === "kisskh") {
+        embedURL = `https://kisskh.nl/embed/{type}/${currentItem.id}`;
       }
 
       document.getElementById('modal-video').src = embedURL;
