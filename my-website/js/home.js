@@ -1,6 +1,7 @@
 const API_KEY = '9871bc59ef6f90d08eec9c49639c6151';
 const BASE_URL = 'https://api.themoviedb.org/3';
 const IMG_URL = 'https://image.tmdb.org/t/p/original';
+const KISSKH_API = 'https://kisskh.megaplay.su/api';
 let currentItem;
 
 async function fetchTrending(type) {
@@ -37,6 +38,7 @@ async function fetchExternalIds(item) {
     }
     const data = await res.json();
     item.external_ids = data; // attach to the item for later use
+    console.info('External IDs fetched:', data);
   } catch (err) {
     console.warn('Error fetching external IDs', err);
   }
@@ -61,7 +63,7 @@ function displayList(items, containerId) {
 
 async function showDetails(item) {
   currentItem = item;
-  // fetch external ids before building embeds (so we can use imdb_id etc.)
+  // fetch external ids before building embeds (so we can use imdb_id, tvdb_id, etc.)
   await fetchExternalIds(currentItem);
 
   document.getElementById('modal-title').textContent = item.title || item.name;
@@ -92,38 +94,43 @@ async function changeServer() {
   document.getElementById('modal-video').src = embedURL;
 }
 
-// New function to handle KissKH with dual fallback (IMDb ID + KissKH API Search)
+// Updated KissKH handler using correct ID types (TVDB for TV, IMDb for movies)
 async function getKissKHEmbed(item, type) {
   const title = item.title || item.name || '';
-  const imdb = item.external_ids && item.external_ids.imdb_id;
-
-  // Method 1: Try IMDb ID first
-  if (imdb) {
-    console.info('Trying KissKH with IMDb ID:', imdb);
-    return `https://kisskh.nl/embed/${type}/${imdb}`;
+  const externalIds = item.external_ids || {};
+  
+  // Method 1: Use TVDB ID for TV shows, IMDb ID for movies
+  if (type === 'tv' && externalIds.tvdb_id) {
+    console.info('Trying KissKH with TVDB ID:', externalIds.tvdb_id);
+    return `${KISSKH_API}/search?query=${externalIds.tvdb_id}&type=tv`;
+  } else if (type === 'movie' && externalIds.imdb_id) {
+    console.info('Trying KissKH with IMDb ID:', externalIds.imdb_id);
+    return `${KISSKH_API}/search?query=${externalIds.imdb_id}&type=movie`;
   }
 
-  // Method 2: Search KissKH API for internal ID
+  // Method 2: Search by title slug
   try {
-    console.info('Searching KissKH for:', title);
-    const searchRes = await fetch(`https://kisskh.nl/api/search?q=${encodeURIComponent(title)}`);
+    const slug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+    console.info('Searching KissKH with slug:', slug);
+    const searchRes = await fetch(`${KISSKH_API}/search?query=${encodeURIComponent(slug)}&type=${type}`);
     
     if (!searchRes.ok) throw new Error('KissKH search failed');
     
     const searchData = await searchRes.json();
+    console.info('KissKH search response:', searchData);
     
-    if (searchData && searchData.length > 0) {
-      const kisskh_id = searchData[0].id;
-      console.info('Found KissKH ID:', kisskh_id);
-      return `https://kisskh.nl/embed/${type}/${kisskh_id}`;
+    if (searchData && searchData.results && searchData.results.length > 0) {
+      const result = searchData.results[0];
+      console.info('Found KissKH result:', result);
+      return `${KISSKH_API}/watch?id=${result.id}`;
     }
   } catch (err) {
-    console.warn('KissKH API search failed:', err);
+    console.warn('KissKH search failed:', err.message);
   }
 
-  // Method 3: Fallback to search page
+  // Method 3: Direct title search on KissKH site
   console.info('Falling back to KissKH search page');
-  return `https://kisskh.nl/?s=${encodeURIComponent(title)}`;
+  return `https://kisskh.megaplay.su/search?q=${encodeURIComponent(title)}`;
 }
 
 function closeModal() {
