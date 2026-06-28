@@ -3,6 +3,7 @@ const BASE_URL = 'https://api.themoviedb.org/3';
 const IMG_URL = 'https://image.tmdb.org/t/p/original';
 const KISSKH_BASE = 'https://kisskh.nl';
 const KISSKH_API = 'https://kisskh.nl/api';
+const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
 let currentItem;
 
 async function fetchTrending(type) {
@@ -95,14 +96,20 @@ async function changeServer() {
   document.getElementById('modal-video').src = embedURL;
 }
 
-// Updated KissKH handler using official API (DramaList/Search)
+// Updated KissKH handler using CORS proxy to bypass restrictions
 async function getKissKHLink(item) {
   const title = item.title || item.name || '';
   
   try {
-    // Use KissKH's official search API endpoint
     console.info('Searching KissKH for:', title);
-    const searchRes = await fetch(`${KISSKH_API}/DramaList/Search?q=${encodeURIComponent(title)}`);
+    
+    // Try with CORS proxy first
+    const proxyUrl = `${CORS_PROXY}${KISSKH_API}/DramaList/Search?q=${encodeURIComponent(title)}`;
+    const searchRes = await fetch(proxyUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
     
     if (!searchRes.ok) {
       console.warn('KissKH search returned status:', searchRes.status);
@@ -119,8 +126,7 @@ async function getKissKHLink(item) {
       
       console.info('Found KissKH drama:', dramaTitle, 'ID:', dramaId);
       
-      // Return link to the drama page on KissKH
-      // User can watch from there without needing kkey for basic viewing
+      // Return direct link to the drama page
       return `${KISSKH_BASE}/Drama/${dramaId}`;
     } else {
       console.warn('No results found for:', title);
@@ -129,7 +135,7 @@ async function getKissKHLink(item) {
     console.warn('KissKH search failed:', err.message);
   }
 
-  // Fallback: direct search page
+  // Fallback: direct search page (will load the full site as backup)
   console.info('Falling back to KissKH search page');
   return `${KISSKH_BASE}/?s=${encodeURIComponent(title)}`;
 }
