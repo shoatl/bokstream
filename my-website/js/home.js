@@ -72,7 +72,7 @@ async function showDetails(item) {
   document.getElementById('modal').style.display = 'flex';
 }
 
-function changeServer() {
+async function changeServer() {
   const server = document.getElementById('server').value;
   const type = currentItem.media_type === "movie" ? "movie" : "tv";
   let embedURL = "";
@@ -84,21 +84,46 @@ function changeServer() {
   } else if (server === "player.videasy.net") {
     embedURL = `https://player.videasy.net/${type}/${currentItem.id}`;
   } else if (server === "kisskh") {
-    // Try to use an external id if available (many sites expect imdb_id)
-    const imdb = currentItem.external_ids && currentItem.external_ids.imdb_id;
-    if (imdb) {
-      // If kisskh embed accepts an imdb id, use it. If you know a different format, change here.
-      embedURL = `https://kisskh.nl/embed/${type}/${imdb}`;
-    } else {
-      // Fallback: open kisskh search for the title (safer than a wrong embed path)
-      const q = encodeURIComponent(currentItem.title || currentItem.name || '');
-      embedURL = `https://kisskh.nl/?s=${q}`;
-    }
+    embedURL = await getKissKHEmbed(currentItem, type);
   }
 
   // Debugging help: print the URL so you can inspect it in console
   console.info('Setting video src ->', embedURL);
   document.getElementById('modal-video').src = embedURL;
+}
+
+// New function to handle KissKH with dual fallback (IMDb ID + KissKH API Search)
+async function getKissKHEmbed(item, type) {
+  const title = item.title || item.name || '';
+  const imdb = item.external_ids && item.external_ids.imdb_id;
+
+  // Method 1: Try IMDb ID first
+  if (imdb) {
+    console.info('Trying KissKH with IMDb ID:', imdb);
+    return `https://kisskh.nl/embed/${type}/${imdb}`;
+  }
+
+  // Method 2: Search KissKH API for internal ID
+  try {
+    console.info('Searching KissKH for:', title);
+    const searchRes = await fetch(`https://kisskh.nl/api/search?q=${encodeURIComponent(title)}`);
+    
+    if (!searchRes.ok) throw new Error('KissKH search failed');
+    
+    const searchData = await searchRes.json();
+    
+    if (searchData && searchData.length > 0) {
+      const kisskh_id = searchData[0].id;
+      console.info('Found KissKH ID:', kisskh_id);
+      return `https://kisskh.nl/embed/${type}/${kisskh_id}`;
+    }
+  } catch (err) {
+    console.warn('KissKH API search failed:', err);
+  }
+
+  // Method 3: Fallback to search page
+  console.info('Falling back to KissKH search page');
+  return `https://kisskh.nl/?s=${encodeURIComponent(title)}`;
 }
 
 function closeModal() {
