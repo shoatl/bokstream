@@ -1,95 +1,341 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>My Website</title>
-  <link rel="stylesheet" href="css/home.css">
-  <link rel="preload" href="css/home.css" as="style">
-  <link rel="preload" href="js/home.js" as="script">
-  <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <!-- HLS.js for better HLS stream support -->
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-  <script defer src="js/home.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BokStream</title>
+    <!-- Include HLS.js library for direct scraper playback -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        :root {
+            --bg-color: #141414;
+            --text-color: #ffffff;
+            --accent-color: #e50914;
+            --card-bg: #1f1f1f;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow-x: hidden;
+        }
+
+        /* Header Navigation */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 4%;
+            position: fixed;
+            width: 92%;
+            top: 0;
+            z-index: 10;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%);
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .search-btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .search-btn:hover {
+            background-color: #b80710;
+        }
+
+        /* Hero Banner */
+        #banner {
+            height: 70vh;
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: flex-end;
+            position: relative;
+        }
+
+        #banner::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(to top, var(--bg-color) 5%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.7) 100%);
+        }
+
+        .banner-content {
+            position: relative;
+            z-index: 2;
+            padding: 0 4% 40px 4%;
+            max-width: 600px;
+        }
+
+        #banner-title {
+            font-size: 48px;
+            margin: 0 0 15px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* Row Layouts */
+        .content-container {
+            padding: 0 4%;
+            margin-top: -30px;
+            position: relative;
+            z-index: 3;
+        }
+
+        .row-title {
+            font-size: 20px;
+            margin: 30px 0 15px 0;
+            font-weight: bold;
+        }
+
+        .list-container {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 15px;
+            scroll-behavior: smooth;
+        }
+
+        .list-container::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .list-container::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+
+        .list-container img {
+            width: 160px;
+            height: 240px;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .list-container img:hover {
+            transform: scale(1.05);
+        }
+
+        /* Universal Modals */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: #181818;
+            width: 90%;
+            max-width: 850px;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 15px; right: 20px;
+            font-size: 30px;
+            color: #fff;
+            cursor: pointer;
+            z-index: 110;
+        }
+
+        /* Media Player Sections */
+        .player-wrapper {
+            width: 100%;
+            background: #000;
+            aspect-ratio: 16 / 9;
+        }
+
+        #modal-iframe, #modal-video {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Media Details Layout */
+        .meta-details {
+            padding: 25px;
+            display: flex;
+            gap: 20px;
+        }
+
+        #modal-image {
+            width: 120px;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .meta-text {
+            flex: 1;
+        }
+
+        #modal-title {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+        }
+
+        .controls-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        #modal-rating {
+            color: #ffb703;
+            font-size: 18px;
+        }
+
+        .server-select {
+            background: #2a2a2a;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #modal-description {
+            font-size: 14px;
+            line-height: 1.5;
+            color: #cccccc;
+        }
+
+        /* Search Interface Modal */
+        .search-box-wrapper {
+            padding: 30px;
+            text-align: center;
+        }
+
+        #search-input {
+            width: 80%;
+            padding: 12px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 4px;
+            font-size: 16px;
+            outline: none;
+        }
+
+        #search-results {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 15px;
+            margin-top: 25px;
+            max-height: 50vh;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        #search-results img {
+            width: 100%;
+            aspect-ratio: 2/3;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        #search-results img:hover {
+            transform: scale(1.05);
+        }
+    </style>
 </head>
-
 <body>
-  <div class="navbar">
-    <img src="logo.png" alt="LOGO HERE" />
-    <div class="nav-links">
-      <a href="index.html">Home</a>
-      <input type="text" class="search-bar" placeholder="Search..." onfocus="openSearchModal()" />
+
+    <header>
+        <div class="logo">BokStream</div>
+        <button class="search-btn" onclick="openSearchModal()">Search</button>
+    </header>
+
+    <!-- Main Hero Carousel/Banner Placement -->
+    <div id="banner">
+        <div class="banner-content">
+            <h1 id="banner-title">Loading Featured...</h1>
+        </div>
     </div>
-  </div>
 
-  <div class="banner" id="banner">
-    <h1 id="banner-title"></h1>
-  </div>
+    <!-- Scrollable Display Containers -->
+    <div class="content-container">
+        <div class="row-title">Trending Movies</div>
+        <div id="movies-list" class="list-container"></div>
 
-  <div class="row">
-    <h2>Trending Movies</h2>
-    <div class="list" id="movies-list"></div>
-  </div>
+        <div class="row-title">Popular TV Shows</div>
+        <div id="tvshows-list" class="list-container"></div>
 
-  <div class="row">
-    <h2>Trending TV Shows</h2>
-    <div class="list" id="tvshows-list"></div>
-  </div>
-
-  <div class="row">
-    <h2>Trending Anime</h2>
-    <div class="list" id="anime-list"></div>
-  </div>
-
-  <div class="modal" id="modal">
-    <div class="modal-content">
-      <span class="close" onclick="closeModal()" style="color: red;">&times;</span>
-      <div class="modal-body">
-  <img id="modal-image" src="" alt="" />
-  <div class="modal-text">
-    <h2 id="modal-title"></h2>
-    <div class="stars" id="modal-rating"></div>
-    <p id="modal-description"></p>
-  </div>
-</div>
-      
-      <div class="server-selector">
-        <label for="server">Change Server:</label>
-        <select id="server" onchange="changeServer()">
-          <option value="vidsrc.to">VidSrc.to (Main)</option>
-          <option value="smashystream">SmashyStream</option>
-          <option value="2embed">2Embed</option>
-          <option value="vidify">Vidify (Autoplay)</option>
-</select>
-        </select>
-      </div>
-      
-      <!-- Video player for HLS streams -->
-      <video id="modal-video" width="100%" height="315" controls crossorigin="anonymous" style="display: none;">
-        Your browser does not support the video tag.
-      </video>
-      
-      <!-- Iframe player for embed streams -->
-      <iframe id="modal-iframe" width="100%" height="315" frameborder="0" allowfullscreen style="display: none;"></iframe>
+        <div class="row-title">Anime Collection</div>
+        <div id="anime-list" class="list-container"></div>
     </div>
-  </div>
 
-  <div class="search-modal" id="search-modal">
-    <span class="close" onclick="closeSearchModal()" style="color: red;">&times;</span>
-    <input type="text" id="search-input" placeholder="Search for a movie or show..." oninput="searchTMDB()" />
-    <div class="results" id="search-results"></div>
-  </div>
+    <!-- Main Video Streaming Modal Context -->
+    <div id="modal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            
+            <div class="player-wrapper">
+                <!-- Dual Player Rendering Target Engine slots -->
+                <iframe id="modal-iframe" allowfullscreen style="display: none;"></iframe>
+                <video id="modal-video" controls style="display: none;"></video>
+            </div>
 
-<footer class="footer">
-  <div class="footer-content">
-    <p>&copy; 2025 My Website. All rights reserved.</p>
-    <div class="footer-links">
-      <a href="#">Disclaimer</a>
-      <a href="#">About Us</a>
-      <a href="#">Contact Us</a>
+            <div class="meta-details">
+                <img id="modal-image" src="" alt="Poster">
+                <div class="meta-text">
+                    <h2 id="modal-title">Media Title</h2>
+                    <div class="controls-row">
+                        <div id="modal-rating"></div>
+                        <select id="server" class="server-select" onchange="changeServer()">
+                            <option value="gogo-scraper">GogoAnime Scraper (Direct Player)</option>
+                            <option value="vidsrc.to">VidSrc.to</option>
+                            <option value="smashystream">SmashyStream</option>
+                        </select>
+                    </div>
+                    <p id="modal-description">Detailed description framework goes here.</p>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-</footer>
 
-  
+    <!-- Dynamic Lookup Multi-Search Overlay -->
+    <div id="search-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 700px;">
+            <span class="close-modal" onclick="closeSearchModal()">&times;</span>
+            <div class="search-box-wrapper">
+                <h2>Search Database</h2>
+                <input type="text" id="search-input" placeholder="Type title name here..." oninput="searchTMDB()">
+                <div id="search-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connect your logic script.js or app.js below this row -->
+    <script src="app.js"></script>
 </body>
+</html>
